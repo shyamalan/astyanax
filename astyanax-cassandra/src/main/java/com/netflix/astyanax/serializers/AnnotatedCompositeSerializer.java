@@ -8,9 +8,14 @@ import java.util.List;
 
 import com.netflix.astyanax.Serializer;
 import com.netflix.astyanax.annotations.Component;
+import com.netflix.astyanax.model.ByteBufferRange;
 import com.netflix.astyanax.model.Equality;
 import com.netflix.astyanax.model.RangeEndpoint;
+
 import java.util.Arrays;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Serializer for a Pojo annotated with Component field annotations
@@ -27,6 +32,8 @@ public class AnnotatedCompositeSerializer<T> extends AbstractSerializer<T> {
     private static final ByteBuffer EMPTY_BYTE_BUFFER   = ByteBuffer.allocate(0);
     private static final int        DEFAULT_BUFFER_SIZE = 128;
     private static final int        COMPONENT_OVERHEAD  = 3;
+    private static Logger LOG = LoggerFactory.getLogger(AnnotatedCompositeSerializer.class);
+
     
     /**
      * Serializer for a single component within the Pojo
@@ -209,6 +216,8 @@ public class AnnotatedCompositeSerializer<T> extends AbstractSerializer<T> {
     public CompositeRangeBuilder buildRange() {
         return new CompositeRangeBuilder() {
             private int position = 0;
+            private int intCount = 0;
+
 
             public void nextComponent() {
                 position++;
@@ -234,6 +243,46 @@ public class AnnotatedCompositeSerializer<T> extends AbstractSerializer<T> {
                 out.write(cb.slice());
                 out.write(equality.toByte());
             }
+            @Override
+            public ByteBufferRange build() {
+                if (!gtltcalled && position < (components.size())) {
+                    LOG.info("Adding a full range scan beyond the previous component of the composite");
+//                    ComponentSerializer<?> serializer = components.get(position);
+//                    Serializer s = SerializerTypeInferer.getSerializer(components.get(position));
+//                    if (SerializerTypeInferer.getSerializer(components.get(position)) instanceof StringSerializer);
+                    ComponentSerializer<?> serializer = components.get(position);
+                    Field f = serializer.getField();
+                    Class<?> type = f.getType();
+                    if (type.getName().equals("java.lang.Integer")) {
+                        intCount++;
+                        if (intCount%2 == 0) {
+                            //hack for equality conversion issue
+                        super.lessThanEquals(Integer.MAX_VALUE);
+                        super.greaterThanEquals(Integer.MIN_VALUE);
+                        } else  {
+                            super.lessThanEquals(Integer.MIN_VALUE);
+                            super.greaterThanEquals(Integer.MAX_VALUE);  
+                        }
+                    } else if  (type.getName().equals("java.lang.String")) {
+                        super.lessThanEquals("~");
+                        super.greaterThanEquals(null);
+                    } else if  (type.getName().equals("boolean")){
+                        super.greaterThanEquals(Boolean.FALSE);
+                        super.lessThanEquals(Boolean.TRUE);
+                    } else if (type.getName().equals("java.lang.Long")) {
+                        super.lessThanEquals(Long.MAX_VALUE);
+                        super.greaterThanEquals(Long.MIN_VALUE);
+                    } else if (type.getName().equals("java.lang.Short")) {
+                        super.lessThanEquals(Short.MAX_VALUE);
+                        super.greaterThanEquals(Short.MIN_VALUE);
+                    } else if (type.getName().equals("java.lang.String")) {
+                        super.lessThanEquals(Byte.MAX_VALUE);
+                        super.greaterThanEquals(Byte.MIN_VALUE);
+                    }
+                }
+                return super.build();
+            }
+            
         };
     }
 

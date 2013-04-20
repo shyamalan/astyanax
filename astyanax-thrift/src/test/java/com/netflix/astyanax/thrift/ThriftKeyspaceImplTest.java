@@ -22,8 +22,10 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import junit.framework.Assert;
 
+import org.apache.cassandra.db.marshal.UTF8Type;
 import org.apache.cassandra.utils.Pair;
 import org.apache.commons.lang.RandomStringUtils;
+import org.codehaus.jackson.impl.Utf8Generator;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -54,6 +56,7 @@ import com.netflix.astyanax.connectionpool.impl.ConnectionPoolConfigurationImpl;
 import com.netflix.astyanax.connectionpool.impl.ConnectionPoolType;
 import com.netflix.astyanax.connectionpool.impl.CountingConnectionPoolMonitor;
 import com.netflix.astyanax.cql.CqlStatementResult;
+import com.netflix.astyanax.ddl.ColumnDefinition;
 import com.netflix.astyanax.ddl.ColumnFamilyDefinition;
 import com.netflix.astyanax.ddl.FieldMetadata;
 import com.netflix.astyanax.ddl.KeyspaceDefinition;
@@ -84,6 +87,7 @@ import com.netflix.astyanax.serializers.StringSerializer;
 import com.netflix.astyanax.serializers.TimeUUIDSerializer;
 import com.netflix.astyanax.serializers.UnknownComparatorException;
 import com.netflix.astyanax.test.SessionEvent;
+import com.netflix.astyanax.thrift.ddl.ThriftColumnFamilyDefinitionImpl;
 import com.netflix.astyanax.util.ColumnarRecordWriter;
 import com.netflix.astyanax.util.CsvColumnReader;
 import com.netflix.astyanax.util.CsvRecordReader;
@@ -196,6 +200,11 @@ public class ThriftKeyspaceImplTest {
     public static ColumnFamily<String, SessionEvent> CF_CLICK_STREAM = ColumnFamily
             .newColumnFamily("ClickStream", StringSerializer.get(),
                     SE_SERIALIZER);
+    public static ColumnFamily<String, String> CF_INDEX_POST = ColumnFamily
+            .newColumnFamily(
+                    "Indexpost", 
+                    StringSerializer.get(),
+                    StringSerializer.get());
 
     private static final String SEEDS = "localhost:9160";
 
@@ -1342,14 +1351,29 @@ public class ThriftKeyspaceImplTest {
         ColumnListMutation<MockCompositeType> mRow = m.withRow(CF_COMPOSITE,
                 rowKey);
         int columnCount = 0;
-        for (char part1 = 'a'; part1 <= 'b'; part1++) {
+        for (char part1 = 'a'; part1 <= 'd'; part1++) {
             for (int part2 = 0; part2 < 10; part2++) {
                 for (int part3 = 10; part3 < 11; part3++) {
                     bool = !bool;
                     columnCount++;
+                    if (bool) {
                     mRow.putEmptyColumn(
                             new MockCompositeType(Character.toString(part1),
                                     part2, part3, bool, "UTF"), null);
+                    mRow.putEmptyColumn(
+                            new MockCompositeType(Character.toString(part1),
+                                    part2, part3, !bool, "NOTUTF"), null);
+                    }
+                    else
+                    {
+//                        mRow.putEmptyColumn(
+//                                new MockCompositeType(Character.toString(part1),
+//                                        part2, part3, !bool, "NOTUTF"), null);
+                        
+//                        mRow.putEmptyColumn(
+//                                new MockCompositeType(Character.toString(part1),
+//                                        part2, part3, !bool, "UTF"), null);
+                    }
                 }
             }
         }
@@ -1386,7 +1410,7 @@ public class ThriftKeyspaceImplTest {
             Assert.fail();
         }
 
-        LOG.info("Range builder");
+        LOG.info("Range builder Testing Level 0 wild card");
         try {
             result = keyspace
                     .prepareQuery(CF_COMPOSITE)
@@ -1394,9 +1418,103 @@ public class ThriftKeyspaceImplTest {
                     .withColumnRange(
                             M_SERIALIZER
                                     .buildRange()
+//                                    .withPrefix("b")
+//                                    .withPrefix(4)
+//                                    .withPrefix(10)
+//                                    .withPrefix(true)
+//                                    .greaterThanEquals(Boolean.FALSE)
+//                                    .lessThanEquals(Boolean.FALSE)
+                                    .build()).execute();
+            for (Column<MockCompositeType> col : result.getResult()) {
+                LOG.info("COLUMN: " + col.getName().toString());
+            }
+            
+            LOG.info("Range builder Testing Level 1 wild card with level0='a'");
+            result = keyspace
+                    .prepareQuery(CF_COMPOSITE)
+                    .getKey(rowKey)
+                    .withColumnRange(
+                            M_SERIALIZER
+                                    .buildRange()
                                     .withPrefix("a")
-                                    .greaterThanEquals(1)
-                                    .lessThanEquals(1)
+//                                    .withPrefix(4)
+//                                    .withPrefix(10)
+//                                    .withPrefix(true)
+//                                    .greaterThanEquals(Boolean.FALSE)
+//                                    .lessThanEquals(Boolean.FALSE)
+                                    .build()).execute();
+            for (Column<MockCompositeType> col : result.getResult()) {
+                LOG.info("COLUMN: " + col.getName().toString());
+            }
+            
+            LOG.info("Range builder Testing Level 2 wild card with level0='a' and level1=4");
+            result = keyspace
+                    .prepareQuery(CF_COMPOSITE)
+                    .getKey(rowKey)
+                    .withColumnRange(
+                            M_SERIALIZER
+                                    .buildRange()
+                                    .withPrefix("a")
+                                    .withPrefix(4)
+//                                    .withPrefix(10)
+//                                    .withPrefix(true)
+                                    .greaterThanEquals(Integer.MIN_VALUE)
+                                    .lessThanEquals(Integer.MAX_VALUE)
+                                    .build()).execute();
+            for (Column<MockCompositeType> col : result.getResult()) {
+                LOG.info("COLUMN: " + col.getName().toString());
+            }
+            
+            
+            LOG.info("Range builder Testing Level 3 wild card with level0='a' and level1=4 and level2=10");
+
+            result = keyspace
+                    .prepareQuery(CF_COMPOSITE)
+                    .getKey(rowKey)
+                    .withColumnRange(
+                            M_SERIALIZER
+                                    .buildRange()
+                                    .withPrefix("a")
+                                    .withPrefix(4)
+                                    .withPrefix(10)
+//                                    .withPrefix(true)
+//                                    .greaterThanEquals(Boolean.FALSE)
+//                                    .lessThanEquals(Boolean.TRUE)
+                                    .build()).execute();
+            for (Column<MockCompositeType> col : result.getResult()) {
+                LOG.info("COLUMN: " + col.getName().toString());
+            }
+            
+            LOG.info("Range builder Testing Level 4 wild card with level0='a' and level1=4 and level2=10 and level3=true");
+            result = keyspace
+                    .prepareQuery(CF_COMPOSITE)
+                    .getKey(rowKey)
+                    .withColumnRange(
+                            M_SERIALIZER
+                                    .buildRange()
+                                    .withPrefix("a")
+                                    .withPrefix(4)
+                                    .withPrefix(10)
+                                    .withPrefix(true)
+//                                    .greaterThanEquals(Boolean.FALSE)
+//                                    .lessThanEquals(Boolean.FALSE)
+                                    .build()).execute();
+            for (Column<MockCompositeType> col : result.getResult()) {
+                LOG.info("COLUMN: " + col.getName().toString());
+            }
+            
+            result = keyspace
+                    .prepareQuery(CF_COMPOSITE)
+                    .getKey(rowKey)
+                    .withColumnRange(
+                            M_SERIALIZER
+                                    .buildRange()
+                                    .withPrefix("b")
+                                    .withPrefix(4)
+                                    .withPrefix(10)
+                                    .withPrefix(true)
+                                    .greaterThanEquals(Character.MIN_VALUE)
+                                    .lessThanEquals(Character.MAX_VALUE)
                                     .build()).execute();
             for (Column<MockCompositeType> col : result.getResult()) {
                 LOG.info("COLUMN: " + col.getName().toString());
@@ -2595,6 +2713,151 @@ public class ThriftKeyspaceImplTest {
         ColumnList<UUID> columns = query.execute().getResult();
         
         keyspace.prepareQuery(CF2).getKey("anything").execute();
+    }
+    
+    @Test
+    public void testIndexQueryPost() throws Exception {
+        OperationResult<Rows<String, String>> result;
+        ImmutableMap<String, Object> NO_OPTIONS = ImmutableMap.of();
+       
+        Map<ColumnFamily, Map<String, Object>> cfs = ImmutableMap.<ColumnFamily, Map<String, Object>>builder()
+                .put(CF_INDEX_POST, 
+                     ImmutableMap.<String, Object>builder()
+                         .put("column_metadata", ImmutableMap.<String, Object>builder()
+                             .put("Index1", ImmutableMap.<String, Object>builder()
+                                 .put("validation_class", "UTF8Type")
+                                 .put("index_type",       "KEYS")
+                                 .build())
+                             .put("Index2", ImmutableMap.<String, Object>builder()
+                                 .put("validation_class", "UTF8Type")
+                                 .put("index_type",       "KEYS")
+                                 .build())
+                              .put("Nonindex",ImmutableMap.<String, Object>builder()
+                                 .put("validation_class", "UTF8Type")
+                                 .build())   
+                             .build())
+                         .build())
+                .put(CF_TTL,        NO_OPTIONS)
+                .build();
+//        keyspace.createColumnFamily(CF_INDEX_POST, ImmutableMap.<String, Object>builder()
+//                .put("comparator_type", "UTF8Type")
+//                .build());
+        keyspace.createColumnFamily(CF_INDEX_POST, ImmutableMap.<String, Object>builder()
+                .put("column_metadata", ImmutableMap.<String, Object>builder()
+                        .put("Index1", ImmutableMap.<String, Object>builder()
+                            .put("validation_class", "UTF8Type")
+                            .put("index_type",       "KEYS")
+                            .build())
+                         .put("Nonindex",ImmutableMap.<String, Object>builder()
+                                 .put("validation_class", "UTF8Type")
+                                 .build()) 
+                        .build())
+                    .build());
+        MutationBatch m;
+        m = keyspace.prepareMutationBatch();
+
+        for (char keyName = 'A'; keyName <= 'Z'; keyName++) {
+            String rowKey = Character.toString(keyName);
+            ColumnListMutation<String> cfmStandard = m.withRow(
+                    CF_INDEX_POST, rowKey);
+            for (char cName = 'a'; cName <= 'z'; cName++) {
+                cfmStandard.putColumn(Character.toString(cName),
+                        (int) (cName - 'a') + 1, null);
+            }
+            cfmStandard
+                    .putColumn("Index1", 100 , null);
+            cfmStandard
+//            .putColumn("Index2", 200 , null);
+//            cfmStandard
+            .putColumn("Nonindex", 300 , null);
+            m.execute();
+        }
+        try {
+            
+            result = keyspace.prepareQuery(CF_INDEX_POST).searchWithIndex()
+                    .setStartKey("").addExpression().whereColumn("Index1")
+                    .equals().value(100).execute();
+            int sz = result.getResult().size();
+//            result = keyspace.prepareQuery(CF_INDEX_POST).searchWithIndex()
+//                    .setStartKey("").addExpression().whereColumn("Nonindex")
+//                    .equals().value(100).execute();
+//             sz = result.getResult().size();
+            LOG.info("************************************************** prepareGetMultiRowIndexQuery: ");
+            ColumnFamilyDefinition cfDef = keyspace.describeKeyspace().getColumnFamily(CF_INDEX_POST.getName());
+            ColumnFamilyDefinition targetDef = keyspace.describeKeyspace().getColumnFamily(CF_INDEX_POST.getName());
+            List<ColumnDefinition> columnDefs = cfDef.getColumnDefinitionList();
+            boolean needToIndexThisColumn = true;
+            targetDef.clearColumnDefinitionList();
+            String targetColumnName = "Nonindex";
+            String targetIdxName = CF_INDEX_POST.getName()+"_index1";
+            for (ColumnDefinition def : columnDefs) {
+               if (def.getName().equals(targetColumnName)) {
+                   ColumnDefinition newColumnDef = cfDef.makeColumnDefinition();
+                   newColumnDef.setName(def.getName());
+                   newColumnDef.setValidationClass(def.getValidationClass());
+                   if (needToIndexThisColumn) {
+                     newColumnDef.setKeysIndex(targetIdxName);
+                   }
+                   targetDef.addColumnDefinition(newColumnDef);
+               } else {
+                   targetDef.addColumnDefinition(def);
+               }
+            }
+            Map<String,Object> immMap = ImmutableMap.<String, Object>builder().build();
+            List<ColumnDefinition> targetDefs = targetDef.getColumnDefinitionList();
+
+            Collection<String> defNames = targetDef.getFieldNames();
+            AstyanaxContext<Cluster> clusterContext = new AstyanaxContext.Builder()
+            .forCluster(TEST_CLUSTER_NAME)
+            .withAstyanaxConfiguration(new AstyanaxConfigurationImpl())
+            .withConnectionPoolConfiguration(
+                    new ConnectionPoolConfigurationImpl(TEST_CLUSTER_NAME)
+                            .setSeeds(SEEDS).setSocketTimeout(30000)
+                            .setMaxTimeoutWhenExhausted(200)
+                            .setMaxConnsPerHost(1))
+            .withConnectionPoolMonitor(new CountingConnectionPoolMonitor())
+            .buildCluster(ThriftFamilyFactory.getInstance());
+
+            clusterContext.start();
+            Cluster cluster = clusterContext.getEntity();
+            Thread.sleep(100);
+//            Object obj = targetDef.getFieldValue("column_metadata");
+//            for (ColumnDefinition def : targetDefs) {
+//            String name = def.getName();
+//            Object defObj =  def.getFieldValue(name);
+//            immMap.put(name, defObj);
+//            }
+            
+//            keyspace.updateColumnFamily(CF_INDEX_POST, ImmutableMap.<String, Object>builder()
+//                    .put("column_metadata", ImmutableMap.<String, Object>builder()
+//                            .put("Nonindex", ImmutableMap.<String, Object>builder()
+//                                .put("validation_class", "UTF8Type")
+//                                .put("index_type",       "KEYS")
+//                                .build())
+//                            .build())
+//                        .build());
+            ColumnFamilyDefinition cfDef2 = keyspace.describeKeyspace().getColumnFamily(CF_INDEX_POST.getName());
+            List<ColumnDefinition> columnDefs2 = cfDef2.getColumnDefinitionList();
+
+            result = keyspace.prepareQuery(CF_INDEX_POST).searchWithIndex()
+                    .setStartKey("").addExpression().whereColumn("Index1")
+                    .equals().value(100).execute();
+            sz = result.getResult().size();
+            result = keyspace.prepareQuery(CF_INDEX_POST).searchWithIndex()
+                    .setStartKey("").addExpression().whereColumn("Nonindex")
+                    .equals().value(300).execute();
+             sz = result.getResult().size();
+             
+            Assert.assertEquals(26, sz);
+        } catch (ConnectionException e) {
+            LOG.error(e.getMessage(), e);
+            e.printStackTrace();
+            Assert.fail();
+        } catch (Exception e) {
+            LOG.error(e.getMessage(), e);
+            e.printStackTrace();
+            Assert.fail();
+        }
     }
     
     private boolean deleteColumn(ColumnFamily<String, String> cf,

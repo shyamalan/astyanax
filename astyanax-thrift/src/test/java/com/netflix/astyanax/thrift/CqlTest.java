@@ -23,6 +23,7 @@ import com.netflix.astyanax.connectionpool.OperationResult;
 import com.netflix.astyanax.connectionpool.impl.ConnectionPoolConfigurationImpl;
 import com.netflix.astyanax.connectionpool.impl.ConnectionPoolType;
 import com.netflix.astyanax.connectionpool.impl.CountingConnectionPoolMonitor;
+import com.netflix.astyanax.core.querybuilder.Query;
 import com.netflix.astyanax.cql.CqlSchema;
 import com.netflix.astyanax.cql.CqlStatementResult;
 import com.netflix.astyanax.ddl.KeyspaceDefinition;
@@ -38,6 +39,7 @@ import com.netflix.astyanax.serializers.MapSerializer;
 import com.netflix.astyanax.serializers.StringSerializer;
 import com.netflix.astyanax.serializers.UUIDSerializer;
 import com.netflix.astyanax.util.SingletonEmbeddedCassandra;
+import static com.netflix.astyanax.core.querybuilder.QueryBuilder.*;
 
 public class CqlTest {
 
@@ -304,6 +306,8 @@ public class CqlTest {
                 .withCql(
                         "CREATE TABLE uuidtest (id UUID PRIMARY KEY, given text, surname text);")
                 .execute();
+        String uuid = UUID.randomUUID().toString();
+        Log.info(uuid);
         keyspace.prepareCqlStatement()
                 .withCql(
                         "INSERT INTO uuidtest (id, given, surname) VALUES (00000000-0000-0000-0000-000000000000, 'x', 'arielle');")
@@ -337,6 +341,58 @@ public class CqlTest {
                     String val = col.getValue(StringSerializer.get());
                     Log.info("columnname=  " + name + "  columnvalue= " + val);
                     Assert.assertEquals("arielle", val);
+                }
+            }
+            Log.info("*************************************");
+        }
+        Assert.assertEquals(1, rows.size());
+    }
+
+    @Test
+    public void testUUIDQueryBuilder() throws Exception {
+        final UUID id = UUID.randomUUID();
+        final String given = "John";
+        final String surname = "Doe";
+        keyspace.prepareCqlStatement()
+                .withCql(
+                        "CREATE TABLE uuidtest (id UUID PRIMARY KEY, given text, surname text);")
+                .execute();
+        Query insert;
+        insert = insertInto("uuidtest").value("id", id).value("given", given)
+                .value("surname", surname);
+        Log.info("==========" + insert.toString() + "============");
+        Assert.assertEquals("INSERT INTO uuidtest(id,given,surname) VALUES ("
+                + id.toString() + ",'" + given + "','" + surname + "');",
+                insert.toString());
+        keyspace.prepareCqlStatement().withCql(insert.toString()).execute();
+        CqlStatementResult result = keyspace.prepareCqlStatement()
+                .withCql("SELECT * FROM uuidtest ;").execute().getResult();
+
+        Rows<UUID, String> rows = result.getRows(UUID_CF);
+        Iterator<Row<UUID, String>> iter = rows.iterator();
+        while (iter.hasNext()) {
+            Row<UUID, String> row = iter.next();
+            ColumnList<String> cols = row.getColumns();
+            Iterator<Column<String>> colIter = cols.iterator();
+            while (colIter.hasNext()) {
+                Column<String> col = colIter.next();
+                String name = col.getName();
+                Log.info("*************************************");
+                if (name.equals("id")) {
+                    UUID val = col.getValue(UUIDSerializer.get());
+                    Log.info("columnname=  " + name + "  columnvalue= " + val);
+                    Assert.assertEquals(id.toString(), val.toString());
+                }
+                if (name.equals("given")) {
+                    String val = col.getValue(StringSerializer.get());
+                    Log.info("columnname=  " + name + "  columnvalue= "
+                            + val.toString());
+                    Assert.assertEquals(given, val);
+                }
+                if (name.equals("surname")) {
+                    String val = col.getValue(StringSerializer.get());
+                    Log.info("columnname=  " + name + "  columnvalue= " + val);
+                    Assert.assertEquals(surname, val);
                 }
             }
             Log.info("*************************************");

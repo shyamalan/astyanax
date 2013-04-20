@@ -26,6 +26,8 @@ public abstract class CompositeRangeBuilder implements ByteBufferRange {
     private int limit = Integer.MAX_VALUE;
     private boolean reversed = false;
     private boolean lockComponent = false;
+    protected boolean gtltcalled = false;
+    protected Object value;
 
     abstract protected void nextComponent();
 
@@ -38,6 +40,7 @@ public abstract class CompositeRangeBuilder implements ByteBufferRange {
         append(start, object, Equality.EQUAL);
         append(end, object, Equality.EQUAL);
         nextComponent();
+        this.value = value;
         return this;
     }
 
@@ -57,24 +60,28 @@ public abstract class CompositeRangeBuilder implements ByteBufferRange {
     public CompositeRangeBuilder greaterThan(Object value) {
         lockComponent = true;
         append(start, value, Equality.GREATER_THAN);
+        gtltcalled = true;
         return this;
     }
 
     public CompositeRangeBuilder greaterThanEquals(Object value) {
         lockComponent = true;
         append(start, value, Equality.GREATER_THAN_EQUALS);
+        gtltcalled = true;
         return this;
     }
 
     public CompositeRangeBuilder lessThan(Object value) {
         lockComponent = true;
         append(end, value, Equality.LESS_THAN);
+        gtltcalled = true;
         return this;
     }
 
     public CompositeRangeBuilder lessThanEquals(Object value) {
         lockComponent = true;
         append(end, value, Equality.LESS_THAN_EQUALS);
+        gtltcalled = true;
         return this;
     }
 
