@@ -29,12 +29,15 @@ import org.codehaus.jackson.impl.Utf8Generator;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mortbay.log.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.netflix.astyanax.AstyanaxContext;
@@ -88,6 +91,7 @@ import com.netflix.astyanax.serializers.TimeUUIDSerializer;
 import com.netflix.astyanax.serializers.UnknownComparatorException;
 import com.netflix.astyanax.test.SessionEvent;
 import com.netflix.astyanax.thrift.ddl.ThriftColumnFamilyDefinitionImpl;
+import com.netflix.astyanax.thrift.model.ThriftColumnListImpl;
 import com.netflix.astyanax.util.ColumnarRecordWriter;
 import com.netflix.astyanax.util.CsvColumnReader;
 import com.netflix.astyanax.util.CsvRecordReader;
@@ -1418,12 +1422,6 @@ public class ThriftKeyspaceImplTest {
                     .withColumnRange(
                             M_SERIALIZER
                                     .buildRange()
-//                                    .withPrefix("b")
-//                                    .withPrefix(4)
-//                                    .withPrefix(10)
-//                                    .withPrefix(true)
-//                                    .greaterThanEquals(Boolean.FALSE)
-//                                    .lessThanEquals(Boolean.FALSE)
                                     .build()).execute();
             for (Column<MockCompositeType> col : result.getResult()) {
                 LOG.info("COLUMN: " + col.getName().toString());
@@ -1437,11 +1435,6 @@ public class ThriftKeyspaceImplTest {
                             M_SERIALIZER
                                     .buildRange()
                                     .withPrefix("a")
-//                                    .withPrefix(4)
-//                                    .withPrefix(10)
-//                                    .withPrefix(true)
-//                                    .greaterThanEquals(Boolean.FALSE)
-//                                    .lessThanEquals(Boolean.FALSE)
                                     .build()).execute();
             for (Column<MockCompositeType> col : result.getResult()) {
                 LOG.info("COLUMN: " + col.getName().toString());
@@ -1456,8 +1449,6 @@ public class ThriftKeyspaceImplTest {
                                     .buildRange()
                                     .withPrefix("a")
                                     .withPrefix(4)
-//                                    .withPrefix(10)
-//                                    .withPrefix(true)
                                     .greaterThanEquals(Integer.MIN_VALUE)
                                     .lessThanEquals(Integer.MAX_VALUE)
                                     .build()).execute();
@@ -1477,9 +1468,6 @@ public class ThriftKeyspaceImplTest {
                                     .withPrefix("a")
                                     .withPrefix(4)
                                     .withPrefix(10)
-//                                    .withPrefix(true)
-//                                    .greaterThanEquals(Boolean.FALSE)
-//                                    .lessThanEquals(Boolean.TRUE)
                                     .build()).execute();
             for (Column<MockCompositeType> col : result.getResult()) {
                 LOG.info("COLUMN: " + col.getName().toString());
@@ -1496,13 +1484,13 @@ public class ThriftKeyspaceImplTest {
                                     .withPrefix(4)
                                     .withPrefix(10)
                                     .withPrefix(true)
-//                                    .greaterThanEquals(Boolean.FALSE)
-//                                    .lessThanEquals(Boolean.FALSE)
                                     .build()).execute();
             for (Column<MockCompositeType> col : result.getResult()) {
                 LOG.info("COLUMN: " + col.getName().toString());
             }
             
+            LOG.info("Range builder Testing Level 4 wild card with level0='b' and level1=4 and level2=10 and level3=true and level4>min and level4<max");
+
             result = keyspace
                     .prepareQuery(CF_COMPOSITE)
                     .getKey(rowKey)
@@ -1513,12 +1501,46 @@ public class ThriftKeyspaceImplTest {
                                     .withPrefix(4)
                                     .withPrefix(10)
                                     .withPrefix(true)
-                                    .greaterThanEquals(Character.MIN_VALUE)
-                                    .lessThanEquals(Character.MAX_VALUE)
+                                    .greaterThanEquals(String.valueOf(Character.MIN_VALUE))
+                                    .lessThanEquals(String.valueOf(Character.MAX_VALUE))
                                     .build()).execute();
             for (Column<MockCompositeType> col : result.getResult()) {
                 LOG.info("COLUMN: " + col.getName().toString());
             }
+ 
+        } catch (ConnectionException e) {
+            LOG.error(e.getMessage(), e);
+            Assert.fail();
+        }
+        try {
+            ColumnList<MockCompositeType> row = keyspace
+                    .prepareQuery(CF_COMPOSITE).getKey(rowKey)
+                    .execute().getResult();
+            LOG.info("Got  columns: " + row.size());
+//            Iterator<Column<MockCompositeType>> iter = row.iterator();
+//            while (iter.hasNext()) {
+//            	String strPart = iter.next().getName().getStringPart();
+//            	if (strPart.compareTo("a") <= 0) {
+//            		iter.remove();
+//            		int j = 0;
+//            	}
+//            	int i = 0;
+//            }
+            Iterable<Column<MockCompositeType>> filtered = Iterables.filter(row, new Predicate<Column<MockCompositeType>>() {
+            	@Override
+            	public boolean apply(Column<MockCompositeType> col) {
+            		String strPart = col.getName().getStringPart();
+            		Log.info("strpart is   "+strPart);
+            		if (strPart.compareTo("a") > 0) {
+            			LOG.info("not filtered" + col.getName().toString());
+            			return true;
+            		}
+        			LOG.info(" filtered" + col.getName().toString());
+            		return false;
+            	}
+            	
+            });
+            int i = 0;
         } catch (ConnectionException e) {
             LOG.error(e.getMessage(), e);
             Assert.fail();
