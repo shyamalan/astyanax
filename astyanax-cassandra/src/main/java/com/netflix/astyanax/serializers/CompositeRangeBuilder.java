@@ -27,7 +27,6 @@ public abstract class CompositeRangeBuilder implements ByteBufferRange {
     private boolean reversed = false;
     private boolean lockComponent = false;
     protected boolean gtltcalled = false;
-    protected Object value;
 
     abstract protected void nextComponent();
 
@@ -40,7 +39,6 @@ public abstract class CompositeRangeBuilder implements ByteBufferRange {
         append(start, object, Equality.EQUAL);
         append(end, object, Equality.EQUAL);
         nextComponent();
-        this.value = value;
         return this;
     }
 
