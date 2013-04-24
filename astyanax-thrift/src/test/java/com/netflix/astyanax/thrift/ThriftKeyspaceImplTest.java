@@ -29,12 +29,15 @@ import org.codehaus.jackson.impl.Utf8Generator;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mortbay.log.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.netflix.astyanax.AstyanaxContext;
@@ -88,6 +91,7 @@ import com.netflix.astyanax.serializers.TimeUUIDSerializer;
 import com.netflix.astyanax.serializers.UnknownComparatorException;
 import com.netflix.astyanax.test.SessionEvent;
 import com.netflix.astyanax.thrift.ddl.ThriftColumnFamilyDefinitionImpl;
+import com.netflix.astyanax.thrift.model.ThriftColumnListImpl;
 import com.netflix.astyanax.util.ColumnarRecordWriter;
 import com.netflix.astyanax.util.CsvColumnReader;
 import com.netflix.astyanax.util.CsvRecordReader;
@@ -1555,6 +1559,7 @@ public class ThriftKeyspaceImplTest {
                 LOG.info("COLUMN: " + col.getName().toString());
             }
             
+<<<<<<< HEAD
           } catch (ConnectionException e) {
             LOG.error(e.getMessage(), e);
             Assert.fail();
