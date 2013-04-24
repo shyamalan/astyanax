@@ -1559,7 +1559,6 @@ public class ThriftKeyspaceImplTest {
                 LOG.info("COLUMN: " + col.getName().toString());
             }
             
-<<<<<<< HEAD
           } catch (ConnectionException e) {
             LOG.error(e.getMessage(), e);
             Assert.fail();
