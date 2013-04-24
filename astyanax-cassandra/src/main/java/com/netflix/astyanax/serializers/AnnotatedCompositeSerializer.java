@@ -1,5 +1,6 @@
 package com.netflix.astyanax.serializers;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -216,9 +217,6 @@ public class AnnotatedCompositeSerializer<T> extends AbstractSerializer<T> {
     public CompositeRangeBuilder buildRange() {
         return new CompositeRangeBuilder() {
             private int position = 0;
-            private int intCount = 0;
-
-
             public void nextComponent() {
                 position++;
             }
@@ -247,22 +245,12 @@ public class AnnotatedCompositeSerializer<T> extends AbstractSerializer<T> {
             public ByteBufferRange build() {
                 if (!gtltcalled && position < (components.size())) {
                     LOG.info("Adding a full range scan beyond the previous component of the composite");
-//                    ComponentSerializer<?> serializer = components.get(position);
-//                    Serializer s = SerializerTypeInferer.getSerializer(components.get(position));
-//                    if (SerializerTypeInferer.getSerializer(components.get(position)) instanceof StringSerializer);
                     ComponentSerializer<?> serializer = components.get(position);
                     Field f = serializer.getField();
                     Class<?> type = f.getType();
-                    if (type.getName().equals("java.lang.Integer")) {
-                        intCount++;
-                        if (intCount%2 == 0) {
-                            //hack for equality conversion issue
+                    if (type.getName().equals("java.lang.Integer")) {                            
                         super.lessThanEquals(Integer.MAX_VALUE);
                         super.greaterThanEquals(Integer.MIN_VALUE);
-                        } else  {
-                            super.lessThanEquals(Integer.MIN_VALUE);
-                            super.greaterThanEquals(Integer.MAX_VALUE);  
-                        }
                     } else if  (type.getName().equals("java.lang.String")) {
                         super.lessThanEquals("~");
                         super.greaterThanEquals(null);

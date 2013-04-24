@@ -192,6 +192,7 @@ public class DefaultEntityManagerTest {
 
 			for (Column<String> c : cl) {
 			    System.out.println("Got column : " + c.getName());
+	             System.out.println("Has Value : " + c.hasValue());
 			}
 			// simple columns
 			Assert.assertEquals(origEntity.getString(), cl.getColumnByName("STRING").getStringValue());
